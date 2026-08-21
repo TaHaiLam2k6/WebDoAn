@@ -3,14 +3,14 @@
 header('Content-Type: application/json');
 
 $host = getenv('DB_HOST');
-$port = getenv('DB_PORT') ?: '3306';
+$port = (int)(getenv('DB_PORT') ?: 3306);
 $db   = getenv('DB_NAME');
 $user = getenv('DB_USER');
 $pass = getenv('DB_PASS');
 
 $ca = '/etc/secrets/ca.pem';
 
-if (!$host || !$db || !$user || !$pass) {
+if (!$host || !$port || !$db || !$user || !$pass) {
     http_response_code(500);
 
     echo json_encode([
@@ -21,78 +21,43 @@ if (!$host || !$db || !$user || !$pass) {
     exit;
 }
 
-if (!file_exists($ca)) {
+if (!is_file($ca) || !is_readable($ca)) {
     http_response_code(500);
 
-    error_log('Aiven CA certificate not found: ' . $ca);
+    error_log("CA certificate unavailable: {$ca}");
 
     echo json_encode([
         'success' => false,
-        'database' => 'CA certificate not found'
+        'database' => 'CA certificate unavailable'
     ]);
 
     exit;
 }
 
 try {
-    $dsn =
-        "mysql:" .
-        "host={$host};" .
-        "port={$port};" .
-        "dbname={$db};" .
-        "charset=utf8mb4";
 
-    $options = [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-
-        PDO::MYSQL_ATTR_SSL_CA => $ca,
-    ];
+    $dsn = sprintf(
+        'mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
+        $host,
+        $port,
+        $db
+    );
 
     $pdo = new PDO(
         $dsn,
         $user,
         $pass,
-        $options
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+
+            PDO::MYSQL_ATTR_SSL_CA => $ca,
+            PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => true
+        ]
     );
 
-} catch (PDOException $e) {
-
-    error_log(
-        'Aiven MySQL connection failed: ' .
-        $e->getMessage()
-    );
-
-    http_response_code(500);
-
-    echo json_encode([
-        'success' => false,
-        'database' => 'connection failed'
-    ]);
-
-    exit;
-}
-
-try {
-    $dsn = "mysql:host={$host};port={$port};dbname={$db};charset=utf8mb4";
-
-    $options = [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ];
-
-    if (file_exists($ca)) {
-        $options[PDO::MYSQL_ATTR_SSL_CA] = $ca;
-    }
-
-    $pdo = new PDO(
-        $dsn,
-        $user,
-        $pass,
-        $options
-    );
+    $pdo->query('SELECT 1');
 
 } catch (PDOException $e) {
 
