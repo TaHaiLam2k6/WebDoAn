@@ -8,7 +8,7 @@ $db   = getenv('DB_NAME');
 $user = getenv('DB_USER');
 $pass = getenv('DB_PASS');
 
-$ca = '/etc/secrets/ca.pem';
+$ca = '/tmp/aiven-ca.pem';
 
 if (!$host || !$port || !$db || !$user || !$pass) {
     http_response_code(500);
