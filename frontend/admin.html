@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - PhoneShop</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="header">
+    <div class="container nav">
+        <a class="logo" href="index.html">PhoneShop Admin</a>
+        <div class="nav-actions">
+            <button onclick="logout()">Đăng xuất</button>
+        </div>
+    </div>
+</header>
+
+<main class="container admin-layout">
+    <section class="panel">
+        <h1 id="formTitle">Thêm sản phẩm</h1>
+
+        <form id="productForm">
+            <input type="hidden" id="id">
+
+            <label>Tên điện thoại</label>
+            <input id="name" required>
+
+            <label>Thương hiệu</label>
+            <input id="brand" required>
+
+            <label>Giá</label>
+            <input id="price" type="number" min="0" step="1000" required>
+
+            <label>URL hình ảnh</label>
+            <input id="image_url" type="url">
+
+            <label>Mô tả</label>
+            <textarea id="description" rows="4"></textarea>
+
+            <label>Số lượng</label>
+            <input id="stock" type="number" min="0" required>
+
+            <div class="form-actions">
+                <button type="submit">Lưu sản phẩm</button>
+                <button type="button" class="secondary" onclick="resetForm()">Hủy</button>
+            </div>
+        </form>
+
+        <div id="message"></div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-title"><h2>Danh sách sản phẩm</h2><button onclick="loadProducts()">Làm mới</button></div>
+        <div id="productTable"></div>
+    </section>
+    <section class="panel full-width">
+        <div class="panel-title"><h2>Quản lý tài khoản</h2><button onclick="loadAccounts()">Làm mới</button></div>
+        <div class="toolbar compact"><input id="accountSearch" placeholder="Tìm username, email, họ tên..."><button onclick="loadAccounts()">Tìm</button></div>
+        <div id="accountTable"></div>
+    </section>
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script>
+const form = document.getElementById("productForm");
+const message = document.getElementById("message");
+
+async function api(url, options = {}) {
+    options.headers = {
+        ...(options.headers || {}),
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${getToken()}`
+    };
+
+    const res = await fetch(`${API_BASE}${url}`, options);
+    const data = await res.json();
+
+    if (res.status === 401) {
+        localStorage.removeItem("admin_token");
+        location.href = "login.html";
+        return;
+    }
+
+    if (!data.success) throw new Error(data.message);
+    return data;
+}
+
+async function checkLogin() {
+    const me = await api("/api/me.php");
+    if(me.account.role !== 'admin'){ location.href='index.html'; return; }
+    loadProducts();
+    loadAccounts();
+}
+
+async function loadAccounts(){const box=document.getElementById('accountTable');try{const q=encodeURIComponent(document.getElementById('accountSearch').value.trim());const d=await api(`/api/accounts.php?q=${q}`);box.innerHTML=`<div class="table-wrap"><table><thead><tr><th>ID</th><th>Tài khoản</th><th>Họ tên</th><th>Vai trò</th><th>Trạng thái</th><th>Mật khẩu mới</th><th>Thao tác</th></tr></thead><tbody>${d.accounts.map(a=>`<tr><td>${a.id}</td><td><strong>${escapeHtml(a.username)}</strong><br><small>${escapeHtml(a.email)}</small></td><td><input id="name-${a.id}" value="${escapeHtml(a.full_name)}"></td><td><select id="role-${a.id}"><option value="user" ${a.role==='user'?'selected':''}>User</option><option value="admin" ${a.role==='admin'?'selected':''}>Admin</option></select></td><td><select id="status-${a.id}"><option value="active" ${a.status==='active'?'selected':''}>Active</option><option value="locked" ${a.status==='locked'?'selected':''}>Locked</option></select></td><td><input id="pass-${a.id}" type="password" placeholder="Giữ nguyên"></td><td><button onclick="updateAccount(${a.id})">Lưu</button> <button class="danger" onclick="deleteAccount(${a.id})">Xóa</button></td></tr>`).join('')}</tbody></table></div>`}catch(e){box.innerHTML=`<div class="error">${escapeHtml(e.message)}</div>`}}
+async function updateAccount(id){try{await api('/api/accounts.php',{method:'PUT',body:JSON.stringify({id,full_name:document.getElementById(`name-${id}`).value,role:document.getElementById(`role-${id}`).value,status:document.getElementById(`status-${id}`).value,password:document.getElementById(`pass-${id}`).value})});loadAccounts()}catch(e){alert(e.message)}}
+async function deleteAccount(id){if(!confirm('Xóa tài khoản này?'))return;try{await api('/api/accounts.php',{method:'DELETE',body:JSON.stringify({id})});loadAccounts()}catch(e){alert(e.message)}}
+async function loadProducts() {
+    const box = document.getElementById("productTable");
+
+    try {
+        const data = await api("/api/products.php");
+        box.innerHTML = `
+            <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Hình</th>
+                        <th>Sản phẩm</th>
+                        <th>Giá</th>
+                        <th>Kho</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                ${data.products.map(p => `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td><img class="thumb" src="${escapeHtml(p.image_url || "https://via.placeholder.com/100")}" alt=""></td>
+                        <td>
+                            <strong>${escapeHtml(p.name)}</strong><br>
+                            <small>${escapeHtml(p.brand)}</small>
+                        </td>
+                        <td>${money(p.price)}</td>
+                        <td>${p.stock}</td>
+                        <td>
+                            <button onclick='editProduct(${JSON.stringify(p)})'>Sửa</button>
+                            <button class="danger" onclick="deleteProduct(${p.id})">Xóa</button>
+                        </td>
+                    </tr>
+                `).join("")}
+                </tbody>
+            </table>
+            </div>
+        `;
+    } catch (err) {
+        box.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+function editProduct(p) {
+    document.getElementById("formTitle").textContent = "Sửa sản phẩm";
+    for (const key of ["id", "name", "brand", "price", "image_url", "description", "stock"]) {
+        document.getElementById(key).value = p[key] ?? "";
+    }
+    window.scrollTo({top: 0, behavior: "smooth"});
+}
+
+function resetForm() {
+    form.reset();
+    document.getElementById("id").value = "";
+    document.getElementById("formTitle").textContent = "Thêm sản phẩm";
+}
+
+form.addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const id = Number(document.getElementById("id").value);
+    const body = {
+        id,
+        name: document.getElementById("name").value.trim(),
+        brand: document.getElementById("brand").value.trim(),
+        price: Number(document.getElementById("price").value),
+        image_url: document.getElementById("image_url").value.trim(),
+        description: document.getElementById("description").value.trim(),
+        stock: Number(document.getElementById("stock").value)
+    };
+
+    try {
+        await api("/api/products.php", {
+            method: id ? "PUT" : "POST",
+            body: JSON.stringify(body)
+        });
+
+        message.className = "success";
+        message.textContent = id ? "Đã cập nhật." : "Đã thêm sản phẩm.";
+        resetForm();
+        loadProducts();
+    } catch (err) {
+        message.className = "error";
+        message.textContent = err.message;
+    }
+});
+
+async function deleteProduct(id) {
+    if (!confirm("Xóa sản phẩm này?")) return;
+
+    try {
+        await api("/api/products.php", {
+            method: "DELETE",
+            body: JSON.stringify({id})
+        });
+        loadProducts();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+async function logout() {
+    try {
+        await api("/api/logout.php", {method: "POST"});
+    } finally {
+        localStorage.removeItem("admin_token");
+        location.href = "login.html";
+    }
+}
+
+checkLogin();
+</script>
+</body>
+</html>

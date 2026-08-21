@@ -1,0 +1,1 @@
+<?php require_once __DIR__.'/../config/bootstrap.php'; if($t=bearerToken()){ $s=db()->prepare('DELETE FROM account_tokens WHERE token_hash=?');$s->execute([hash('sha256',$t)]);} jsonResponse(['success'=>true]);

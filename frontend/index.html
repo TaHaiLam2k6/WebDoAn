@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhoneShop - Điện thoại</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="header">
+    <div class="container nav">
+        <a class="logo" href="index.html">PhoneShop</a>
+        <div class="nav-actions">
+            <a href="login.html">Admin</a>
+        </div>
+    </div>
+</header>
+
+<main class="container">
+    <section class="hero">
+        <div>
+            <span class="badge">PHONE STORE</span>
+            <h1>Điện thoại chính hãng</h1>
+            <p>Danh sách sản phẩm được lấy trực tiếp từ MySQL trên Aiven thông qua PHP API trên Render.</p>
+        </div>
+    </section>
+
+    <div class="toolbar">
+        <input id="search" type="search" placeholder="Tìm iPhone, Samsung...">
+        <button onclick="loadProducts()">Tìm kiếm</button>
+    </div>
+
+    <div id="message"></div>
+    <section id="products" class="grid"></section>
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script>
+async function loadProducts() {
+    const q = encodeURIComponent(document.getElementById("search").value.trim());
+    const box = document.getElementById("products");
+    box.innerHTML = "<p>Đang tải...</p>";
+
+    try {
+        const res = await fetch(`${API_BASE}/api/products.php?q=${q}`);
+        const data = await res.json();
+
+        if (!data.success) throw new Error(data.message);
+
+        if (!data.products.length) {
+            box.innerHTML = "<p>Không có sản phẩm.</p>";
+            return;
+        }
+
+        box.innerHTML = data.products.map(p => `
+            <article class="card">
+                <img src="${escapeHtml(p.image_url || "https://via.placeholder.com/800x600?text=Phone")}" alt="${escapeHtml(p.name)}">
+                <div class="card-body">
+                    <span class="brand">${escapeHtml(p.brand)}</span>
+                    <h2>${escapeHtml(p.name)}</h2>
+                    <p>${escapeHtml(p.description || "")}</p>
+                    <div class="price">${money(p.price)}</div>
+                    <div class="stock">${Number(p.stock) > 0 ? `Còn ${p.stock} sản phẩm` : "Hết hàng"}</div>
+                </div>
+            </article>
+        `).join("");
+    } catch (err) {
+        box.innerHTML = `<div class="error">Không thể kết nối API: ${escapeHtml(err.message)}</div>`;
+    }
+}
+
+document.getElementById("search").addEventListener("keydown", e => {
+    if (e.key === "Enter") loadProducts();
+});
+
+loadProducts();
+</script>
+</body>
+</html>
