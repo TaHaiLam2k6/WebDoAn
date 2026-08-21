@@ -1,28 +1,43 @@
 <?php
 
-header('Content-Type: application/json');
+declare(strict_types=1);
 
-require_once __DIR__ . '/config/db.php';
+header('Content-Type: application/json; charset=utf-8');
 
 try {
-    $stmt = $pdo->query("SELECT VERSION() AS version");
+    // Nạp hàm db()
+    require_once __DIR__ . '/config/db.php';
 
-    $row = $stmt->fetch();
+    // Lấy PDO connection
+    $pdo = db();
+
+    // Test database
+    $stmt = $pdo->query('SELECT 1 AS test');
+
+    $result = $stmt->fetch();
+
+    // Lấy phiên bản MySQL
+    $version = $pdo->query('SELECT VERSION()')->fetchColumn();
 
     echo json_encode([
         'success' => true,
         'database' => 'connected',
-        'mysql_version' => $row['version']
-    ]);
+        'mysql_version' => $version,
+        'test' => $result['test'] ?? null
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
-} catch (PDOException $e) {
+} catch (Throwable $e) {
 
-    error_log($e->getMessage());
+    error_log(
+        'Health check database error: ' .
+        $e->getMessage()
+    );
 
     http_response_code(500);
 
     echo json_encode([
         'success' => false,
-        'database' => 'query failed'
-    ]);
+        'database' => 'connection failed',
+        'error' => $e->getMessage()
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 }
