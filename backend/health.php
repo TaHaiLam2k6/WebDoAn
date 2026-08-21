@@ -1,20 +1,28 @@
 <?php
-header('Content-Type: application/json; charset=utf-8');
+
+header('Content-Type: application/json');
+
+require_once __DIR__ . '/config/db.php';
 
 try {
-    require_once __DIR__ . '/config/db.php';
-    $version = db()->query('SELECT VERSION() AS version')->fetch()['version'];
+    $stmt = $pdo->query("SELECT VERSION() AS version");
+
+    $row = $stmt->fetch();
 
     echo json_encode([
         'success' => true,
-        'service' => 'PhoneShop PHP API',
         'database' => 'connected',
-        'mysql_version' => $version
+        'mysql_version' => $row['version']
     ]);
-} catch (Throwable $e) {
+
+} catch (PDOException $e) {
+
+    error_log($e->getMessage());
+
     http_response_code(500);
+
     echo json_encode([
         'success' => false,
-        'database' => 'connection failed'
+        'database' => 'query failed'
     ]);
 }
