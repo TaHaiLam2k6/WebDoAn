@@ -2,7 +2,7 @@
 
 header('Content-Type: application/json');
 
-$ca = '/etc/secrets/ca.pem';
+$ca = '/tmp/aiven-ca.pem';
 
 $result = [
     'php_version' => PHP_VERSION,
