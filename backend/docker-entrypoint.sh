@@ -11,6 +11,7 @@ if [ -f /etc/secrets/ca.pem ]; then
     chmod 644 /tmp/aiven-ca.pem
 
     echo "CA copied to /tmp/aiven-ca.pem"
+
     ls -l /tmp/aiven-ca.pem
 else
     echo "ERROR: /etc/secrets/ca.pem not found"
