@@ -1,168 +1,64 @@
 <?php
-
 declare(strict_types=1);
-
-/*
-|--------------------------------------------------------------------------
-| Database connection
-| Render + Aiven MySQL
-|--------------------------------------------------------------------------
-*/
 
 function db(): PDO
 {
     static $pdo = null;
 
-    // Nếu đã kết nối rồi thì dùng lại connection
     if ($pdo instanceof PDO) {
         return $pdo;
     }
 
-    // Lấy thông tin từ Render Environment Variables
-    $host = getenv('DB_HOST');
+    $host = getenv('DB_HOST') ?: '';
     $port = getenv('DB_PORT') ?: '3306';
-    $name = getenv('DB_NAME');
-    $user = getenv('DB_USER');
-    $pass = getenv('DB_PASS');
+    $name = getenv('DB_NAME') ?: '';
+    $user = getenv('DB_USER') ?: '';
 
-    /*
-    |--------------------------------------------------------------------------
-    | CA certificate
-    |--------------------------------------------------------------------------
-    | docker-entrypoint.sh copy:
-    |
-    | /etc/secrets/ca.pem
-    |
-    | thành:
-    |
-    | /tmp/aiven-ca.pem
-    |--------------------------------------------------------------------------
-    */
 
-    $ca = '/tmp/aiven-ca.pem';
-
-    /*
-    |--------------------------------------------------------------------------
-    | Kiểm tra Environment Variables
-    |--------------------------------------------------------------------------
-    */
-
-    $missing = [];
-
-    if (!$host) {
-        $missing[] = 'DB_HOST';
+    $pass = getenv('DB_PASSWORD');
+    if ($pass === false || $pass === '') {
+        $pass = getenv('DB_PASS') ?: '';
     }
 
-    if (!$port) {
-        $missing[] = 'DB_PORT';
-    }
+    $ca = getenv('DB_SSL_CA') ?: '/etc/secrets/ca.pem';
 
-    if (!$name) {
-        $missing[] = 'DB_NAME';
-    }
-
-    if (!$user) {
-        $missing[] = 'DB_USER';
-    }
-
-    if (!$pass) {
-        $missing[] = 'DB_PASS';
-    }
-
-    if (!empty($missing)) {
+    if ($host === '' || $name === '' || $user === '' || $pass === '') {
         throw new RuntimeException(
-            'Missing database environment variables: ' .
-            implode(', ', $missing)
+            'Thiếu biến môi trường DB_HOST/DB_NAME/DB_USER/DB_PASSWORD'
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Kiểm tra CA
-    |--------------------------------------------------------------------------
-    */
-
-    if (!is_file($ca)) {
+    if (!file_exists($ca)) {
         throw new RuntimeException(
-            'Aiven CA certificate not found: ' . $ca
+            'Không tìm thấy CA certificate: ' . $ca
         );
     }
 
     if (!is_readable($ca)) {
         throw new RuntimeException(
-            'Aiven CA certificate is not readable: ' . $ca
+            'CA certificate tồn tại nhưng PHP không đọc được: ' . $ca
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | PDO DSN
-    |--------------------------------------------------------------------------
-    */
-
-    $dsn = sprintf(
-        'mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
-        $host,
-        (int)$port,
-        $name
-    );
-
-    /*
-    |--------------------------------------------------------------------------
-    | PDO Options
-    |--------------------------------------------------------------------------
-    */
+    $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
 
     $options = [
-        PDO::ATTR_ERRMODE =>
-            PDO::ERRMODE_EXCEPTION,
-
-        PDO::ATTR_DEFAULT_FETCH_MODE =>
-            PDO::FETCH_ASSOC,
-
-        PDO::ATTR_EMULATE_PREPARES =>
-            false,
-
-        /*
-        |--------------------------------------------------------------------------
-        | Aiven SSL
-        |--------------------------------------------------------------------------
-        */
-
-        PDO::MYSQL_ATTR_SSL_CA =>
-            $ca,
-
-        PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT =>
-            true,
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+        PDO::MYSQL_ATTR_SSL_CA => $ca,
     ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | Connect to Aiven
-    |--------------------------------------------------------------------------
-    */
+    $pdo = new PDO(
+        $dsn,
+        $user,
+        $pass,
+        $options
+    );
 
-    try {
+    $pdo->query('SELECT 1');
 
-        $pdo = new PDO(
-            $dsn,
-            $user,
-            $pass,
-            $options
-        );
-
-        // Test connection
-        $pdo->query('SELECT 1');
-
-        return $pdo;
-
-    } catch (PDOException $e) {
-
-        error_log(
-            'Database connection failed: ' .
-            $e->getMessage()
-        );
-
-        throw $e;
-    }
+    return $pdo;
 }
+
+$pdo = db();
