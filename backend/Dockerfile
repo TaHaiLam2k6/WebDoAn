@@ -7,6 +7,10 @@ RUN docker-php-ext-install pdo pdo_mysql
 RUN a2enmod rewrite headers
 
 
+RUN groupadd -g 1000 render-secrets \
+    && usermod -aG render-secrets www-data
+
+
 COPY . /var/www/html/
 
 
