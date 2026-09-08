@@ -1,41 +1,64 @@
 <?php
-$host = getenv('DB_HOST');
-$port = getenv('DB_PORT') ?: '3306';
-$db   = getenv('DB_NAME');
-$user = getenv('DB_USER');
-$pass = getenv('DB_PASSWORD');
-$caFile = '/etc/secrets/ca.pem';
+declare(strict_types=1);
 
-try {
+function db(): PDO
+{
+    static $pdo = null;
 
-    if (!$host || !$db || !$user || !$pass) {
-        throw new Exception('Thiếu biến môi trường database.');
+    if ($pdo instanceof PDO) {
+        return $pdo;
     }
 
-    $dsn = "mysql:host={$host};port={$port};dbname={$db};charset=utf8mb4";
+    $host = getenv('DB_HOST') ?: '';
+    $port = getenv('DB_PORT') ?: '3306';
+    $name = getenv('DB_NAME') ?: '';
+    $user = getenv('DB_USER') ?: '';
+
+
+    $pass = getenv('DB_PASSWORD');
+    if ($pass === false || $pass === '') {
+        $pass = getenv('DB_PASS') ?: '';
+    }
+
+    $ca = getenv('DB_SSL_CA') ?: '/etc/secrets/ca.pem';
+
+    if ($host === '' || $name === '' || $user === '' || $pass === '') {
+        throw new RuntimeException(
+            'Thiếu biến môi trường DB_HOST/DB_NAME/DB_USER/DB_PASSWORD'
+        );
+    }
+
+    if (!file_exists($ca)) {
+        throw new RuntimeException(
+            'Không tìm thấy CA certificate: ' . $ca
+        );
+    }
+
+    if (!is_readable($ca)) {
+        throw new RuntimeException(
+            'CA certificate tồn tại nhưng PHP không đọc được: ' . $ca
+        );
+    }
+
+    $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
 
     $options = [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES   => false,
-        PDO::ATTR_TIMEOUT            => 10
+        PDO::ATTR_EMULATE_PREPARES => false,
+        PDO::MYSQL_ATTR_SSL_CA => $ca,
     ];
 
-    if (file_exists($caFile) && is_readable($caFile)) {
+    $pdo = new PDO(
+        $dsn,
+        $user,
+        $pass,
+        $options
+    );
 
-        $options[PDO::MYSQL_ATTR_SSL_CA] = $caFile;
+    $pdo->query('SELECT 1');
 
-    } else {
-
-        error_log("CA certificate không tồn tại hoặc không có quyền đọc: " . $caFile);
-
-    }
-
-    $pdo = new PDO($dsn, $user, $pass, $options);
-
-} catch (Throwable $e) {
-
-    error_log("Database connection failed: " . $e->getMessage());
-
-    $pdo = null;
+    return $pdo;
 }
+
+$pdo = db();
