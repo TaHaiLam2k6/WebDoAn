@@ -1,13 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
 
-$input = inputJson();
+header('Content-Type: application/json; charset=utf-8');
 
-$login = trim((string)($input['login'] ?? ''));
-$password = (string)($input['password'] ?? '');
+$data = inputJson();
+
+$login = trim((string)($data['login'] ?? ''));
+$password = (string)($data['password'] ?? '');
 
 if ($login === '' || $password === '') {
     jsonResponse([
@@ -18,6 +19,7 @@ if ($login === '' || $password === '') {
 
 try {
     $pdo = db();
+
 
     $stmt = $pdo->prepare("
         SELECT
@@ -55,10 +57,7 @@ try {
         ], 403);
     }
 
-    if (!password_verify(
-        $password,
-        $account['password_hash']
-    )) {
+    if (!password_verify($password, $account['password_hash'])) {
         jsonResponse([
             'success' => false,
             'message' => 'Tài khoản hoặc mật khẩu không đúng.'
@@ -70,29 +69,30 @@ try {
 
     $expiresAt = date(
         'Y-m-d H:i:s',
-        time() + 7 * 24 * 60 * 60
+        time() + (7 * 24 * 60 * 60)
     );
 
 
-    $stmt = $pdo->prepare("
+    $delete = $pdo->prepare("
+        DELETE FROM account_tokens
+        WHERE account_id = ?
+    ");
+    $delete->execute([
+        (int)$account['id']
+    ]);
+
+
+    $insert = $pdo->prepare("
         INSERT INTO account_tokens
-        (
-            account_id,
-            token,
-            expires_at
-        )
+            (account_id, token, expires_at)
         VALUES
-        (
-            :account_id,
-            :token,
-            :expires_at
-        )
+            (?, ?, ?)
     ");
 
-    $stmt->execute([
-        ':account_id' => $account['id'],
-        ':token' => $token,
-        ':expires_at' => $expiresAt
+    $insert->execute([
+        (int)$account['id'],
+        $token,
+        $expiresAt
     ]);
 
     unset($account['password_hash']);
@@ -101,18 +101,23 @@ try {
         'success' => true,
         'message' => 'Đăng nhập thành công.',
         'token' => $token,
-        'account' => $account
+        'account' => [
+            'id' => (int)$account['id'],
+            'username' => $account['username'],
+            'email' => $account['email'],
+            'full_name' => $account['full_name'],
+            'role' => $account['role'],
+            'status' => $account['status']
+        ]
     ]);
 
 } catch (Throwable $e) {
 
-    error_log(
-        'LOGIN ERROR: ' .
-        $e->getMessage()
-    );
+    error_log($e->getMessage());
 
     jsonResponse([
         'success' => false,
-        'message' => 'Lỗi máy chủ hoặc cơ sở dữ liệu.'
+        'message' => 'Lỗi máy chủ hoặc cơ sở dữ liệu.',
+        'error' => $e->getMessage()
     ], 500);
 }
