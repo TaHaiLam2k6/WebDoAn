@@ -16,7 +16,10 @@ if ($login === '' || $password === '') {
 }
 
 try {
-    $stmt = db()->prepare("
+    $pdo = db();
+
+
+    $stmt = $pdo->prepare("
         SELECT
             id,
             username,
@@ -26,13 +29,14 @@ try {
             role,
             status
         FROM accounts
-        WHERE username = :login
-           OR email = :login
+        WHERE username = :username
+           OR email = :email
         LIMIT 1
     ");
 
     $stmt->execute([
-        ':login' => $login
+        ':username' => $login,
+        ':email' => $login
     ]);
 
     $account = $stmt->fetch();
@@ -44,12 +48,14 @@ try {
         ], 401);
     }
 
+ 
     if ($account['status'] !== 'active') {
         jsonResponse([
             'success' => false,
             'message' => 'Tài khoản đã bị khóa.'
         ], 403);
     }
+
 
     if (!password_verify($password, $account['password_hash'])) {
         jsonResponse([
@@ -58,31 +64,32 @@ try {
         ], 401);
     }
 
-    // Tạo token đăng nhập
     $token = bin2hex(random_bytes(32));
-    $tokenHash = hash('sha256', $token);
 
-    // Token hết hạn sau 7 ngày
-    $expiresAt = date('Y-m-d H:i:s', time() + 7 * 24 * 60 * 60);
 
-    $tokenStmt = db()->prepare("
+    $expiresAt = date(
+        'Y-m-d H:i:s',
+        time() + (7 * 24 * 60 * 60)
+    );
+
+    $tokenStmt = $pdo->prepare("
         INSERT INTO account_tokens
         (
             account_id,
-            token_hash,
+            token,
             expires_at
         )
         VALUES
         (
             :account_id,
-            :token_hash,
+            :token,
             :expires_at
         )
     ");
 
     $tokenStmt->execute([
         ':account_id' => $account['id'],
-        ':token_hash' => $tokenHash,
+        ':token' => $token,
         ':expires_at' => $expiresAt
     ]);
 
@@ -97,10 +104,18 @@ try {
 
 } catch (Throwable $e) {
 
-    error_log($e->getMessage());
+    error_log(
+        'LOGIN ERROR: ' .
+        $e->getMessage() .
+        ' | FILE: ' .
+        $e->getFile() .
+        ' | LINE: ' .
+        $e->getLine()
+    );
 
     jsonResponse([
         'success' => false,
-        'message' => $e->getMessage()
+        'message' => 'Lỗi máy chủ hoặc cơ sở dữ liệu.',
+        'debug' => $e->getMessage()
     ], 500);
 }
