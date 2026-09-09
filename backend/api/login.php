@@ -66,9 +66,7 @@ try {
         ], 401);
     }
 
-    /*
-     * Tạo token
-     */
+    // Tạo token đăng nhập
     $token = bin2hex(random_bytes(32));
 
     $expiresAt = date(
@@ -76,6 +74,7 @@ try {
         time() + (7 * 24 * 60 * 60)
     );
 
+    // Database dùng cột "token"
     $tokenStmt = $pdo->prepare("
         INSERT INTO account_tokens
         (
@@ -108,10 +107,7 @@ try {
 
 } catch (Throwable $e) {
 
-    error_log(
-        'LOGIN ERROR: ' .
-        $e->getMessage()
-    );
+    error_log('LOGIN ERROR: ' . $e->getMessage());
 
     jsonResponse([
         'success' => false,
