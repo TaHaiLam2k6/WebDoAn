@@ -73,7 +73,7 @@ try {
         time() + 7 * 24 * 60 * 60
     );
 
-    // Lưu token vào đúng cột token của database
+
     $stmt = $pdo->prepare("
         INSERT INTO account_tokens
         (
