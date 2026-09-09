@@ -101,6 +101,6 @@ try {
 
     jsonResponse([
         'success' => false,
-        'message' => 'Lỗi máy chủ hoặc cơ sở dữ liệu.'
+        'message' => $e->getMessage()
     ], 500);
 }
