@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
@@ -18,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/db.php';
 
+
 function jsonResponse(array $data, int $status = 200): never
 {
     http_response_code($status);
@@ -30,6 +30,7 @@ function jsonResponse(array $data, int $status = 200): never
     exit;
 }
 
+
 function inputJson(): array
 {
     $data = json_decode(
@@ -39,6 +40,7 @@ function inputJson(): array
 
     return is_array($data) ? $data : [];
 }
+
 
 function bearerToken(): ?string
 {
@@ -51,6 +53,7 @@ function bearerToken(): ?string
     return null;
 }
 
+
 function currentAccount(): ?array
 {
     $token = bearerToken();
@@ -59,9 +62,8 @@ function currentAccount(): ?array
         return null;
     }
 
-    $pdo = db();
 
-    $stmt = $pdo->prepare("
+    $stmt = db()->prepare("
         SELECT
             a.id,
             a.username,
@@ -72,13 +74,13 @@ function currentAccount(): ?array
         FROM account_tokens t
         INNER JOIN accounts a
             ON a.id = t.account_id
-        WHERE t.token = :token
+        WHERE t.token = ?
           AND t.expires_at > NOW()
         LIMIT 1
     ");
 
     $stmt->execute([
-        ':token' => $token
+        $token
     ]);
 
     $account = $stmt->fetch();
@@ -96,6 +98,7 @@ function currentAccount(): ?array
     return $account;
 }
 
+
 function requireLogin(): array
 {
     $account = currentAccount();
@@ -109,6 +112,7 @@ function requireLogin(): array
 
     return $account;
 }
+
 
 function requireAdmin(): array
 {
