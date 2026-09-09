@@ -81,11 +81,7 @@ function currentAccount(): ?array
 
     $account = $stmt->fetch();
 
-    if (!$account) {
-        return null;
-    }
-
-    if ($account['status'] !== 'active') {
+    if (!$account || $account['status'] !== 'active') {
         return null;
     }
 
