@@ -20,9 +20,6 @@ try {
 
     $pdo = db();
 
-    /*
-     * Tìm username hoặc email
-     */
     $stmt = $pdo->prepare("
         SELECT
             id,
@@ -52,9 +49,6 @@ try {
         ], 401);
     }
 
-    /*
-     * Kiểm tra tài khoản
-     */
     if ($account['status'] !== 'active') {
         jsonResponse([
             'success' => false,
@@ -62,9 +56,6 @@ try {
         ], 403);
     }
 
-    /*
-     * Kiểm tra password
-     */
     if (!password_verify(
         $password,
         $account['password_hash']
@@ -85,9 +76,6 @@ try {
         time() + (7 * 24 * 60 * 60)
     );
 
-    /*
-     * Lưu token vào account_tokens
-     */
     $tokenStmt = $pdo->prepare("
         INSERT INTO account_tokens
         (
@@ -111,9 +99,6 @@ try {
 
     unset($account['password_hash']);
 
-    /*
-     * Trả về đúng tên mà login.html đang sử dụng
-     */
     jsonResponse([
         'success' => true,
         'message' => 'Đăng nhập thành công.',
