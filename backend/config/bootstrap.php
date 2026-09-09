@@ -82,8 +82,6 @@ function currentAccount(): ?array
         return null;
     }
 
-    $tokenHash = hash('sha256', $token);
-
     $stmt = db()->prepare("
         SELECT
             a.id,
@@ -101,7 +99,7 @@ function currentAccount(): ?array
     ");
 
     $stmt->execute([
-        $tokenHash
+        $token
     ]);
 
     $account = $stmt->fetch();
