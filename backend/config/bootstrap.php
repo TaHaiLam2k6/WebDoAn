@@ -44,12 +44,10 @@ function inputJson(): array
 
 function bearerToken(): ?string
 {
-
     $header =
         $_SERVER['HTTP_AUTHORIZATION']
         ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
         ?? '';
-
 
     if ($header === '' && function_exists('getallheaders')) {
         $headers = getallheaders();
