@@ -44,7 +44,27 @@ function inputJson(): array
 
 function bearerToken(): ?string
 {
-    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+
+    $header =
+        $_SERVER['HTTP_AUTHORIZATION']
+        ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+        ?? '';
+
+
+    if ($header === '' && function_exists('getallheaders')) {
+        $headers = getallheaders();
+
+        foreach ($headers as $name => $value) {
+            if (strcasecmp($name, 'Authorization') === 0) {
+                $header = $value;
+                break;
+            }
+        }
+    }
+
+    if ($header === '') {
+        return null;
+    }
 
     if (preg_match('/Bearer\s+(.+)/i', $header, $matches)) {
         return trim($matches[1]);
@@ -62,6 +82,7 @@ function currentAccount(): ?array
         return null;
     }
 
+    $tokenHash = hash('sha256', $token);
 
     $stmt = db()->prepare("
         SELECT
@@ -74,13 +95,13 @@ function currentAccount(): ?array
         FROM account_tokens t
         INNER JOIN accounts a
             ON a.id = t.account_id
-        WHERE t.token = ?
+        WHERE t.token_hash = ?
           AND t.expires_at > NOW()
         LIMIT 1
     ");
 
     $stmt->execute([
-        $token
+        $tokenHash
     ]);
 
     $account = $stmt->fetch();
