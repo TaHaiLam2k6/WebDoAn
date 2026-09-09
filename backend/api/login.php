@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
@@ -16,9 +17,12 @@ if ($login === '' || $password === '') {
 }
 
 try {
+
     $pdo = db();
 
-
+    /*
+     * Tìm username hoặc email
+     */
     $stmt = $pdo->prepare("
         SELECT
             id,
@@ -48,7 +52,9 @@ try {
         ], 401);
     }
 
- 
+    /*
+     * Kiểm tra tài khoản
+     */
     if ($account['status'] !== 'active') {
         jsonResponse([
             'success' => false,
@@ -56,22 +62,32 @@ try {
         ], 403);
     }
 
-
-    if (!password_verify($password, $account['password_hash'])) {
+    /*
+     * Kiểm tra password
+     */
+    if (!password_verify(
+        $password,
+        $account['password_hash']
+    )) {
         jsonResponse([
             'success' => false,
             'message' => 'Tài khoản hoặc mật khẩu không đúng.'
         ], 401);
     }
 
+    /*
+     * Tạo token
+     */
     $token = bin2hex(random_bytes(32));
-
 
     $expiresAt = date(
         'Y-m-d H:i:s',
         time() + (7 * 24 * 60 * 60)
     );
 
+    /*
+     * Lưu token vào account_tokens
+     */
     $tokenStmt = $pdo->prepare("
         INSERT INTO account_tokens
         (
@@ -95,6 +111,9 @@ try {
 
     unset($account['password_hash']);
 
+    /*
+     * Trả về đúng tên mà login.html đang sử dụng
+     */
     jsonResponse([
         'success' => true,
         'message' => 'Đăng nhập thành công.',
@@ -106,16 +125,11 @@ try {
 
     error_log(
         'LOGIN ERROR: ' .
-        $e->getMessage() .
-        ' | FILE: ' .
-        $e->getFile() .
-        ' | LINE: ' .
-        $e->getLine()
+        $e->getMessage()
     );
 
     jsonResponse([
         'success' => false,
-        'message' => 'Lỗi máy chủ hoặc cơ sở dữ liệu.',
-        'debug' => $e->getMessage()
+        'message' => 'Lỗi máy chủ hoặc cơ sở dữ liệu.'
     ], 500);
 }
