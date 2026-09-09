@@ -65,7 +65,7 @@ try {
         ], 401);
     }
 
-    // Tạo token
+
     $token = bin2hex(random_bytes(32));
 
     $expiresAt = date(
