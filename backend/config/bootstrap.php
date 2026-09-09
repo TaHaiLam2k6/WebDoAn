@@ -18,7 +18,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/db.php';
 
-
 function jsonResponse(array $data, int $status = 200): never
 {
     http_response_code($status);
@@ -31,7 +30,6 @@ function jsonResponse(array $data, int $status = 200): never
     exit;
 }
 
-
 function inputJson(): array
 {
     $data = json_decode(
@@ -42,24 +40,16 @@ function inputJson(): array
     return is_array($data) ? $data : [];
 }
 
-
 function bearerToken(): ?string
 {
     $header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
 
-    if (
-        preg_match(
-            '/Bearer\s+(.+)/i',
-            $header,
-            $matches
-        )
-    ) {
+    if (preg_match('/Bearer\s+(.+)/i', $header, $matches)) {
         return trim($matches[1]);
     }
 
     return null;
 }
-
 
 function currentAccount(): ?array
 {
@@ -91,10 +81,11 @@ function currentAccount(): ?array
 
     $account = $stmt->fetch();
 
-    if (
-        !$account ||
-        $account['status'] !== 'active'
-    ) {
+    if (!$account) {
+        return null;
+    }
+
+    if ($account['status'] !== 'active') {
         return null;
     }
 
@@ -102,7 +93,6 @@ function currentAccount(): ?array
 
     return $account;
 }
-
 
 function requireLogin(): array
 {
@@ -117,7 +107,6 @@ function requireLogin(): array
 
     return $account;
 }
-
 
 function requireAdmin(): array
 {
