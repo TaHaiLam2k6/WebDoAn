@@ -59,7 +59,9 @@ function currentAccount(): ?array
         return null;
     }
 
-    $stmt = db()->prepare("
+    $pdo = db();
+
+    $stmt = $pdo->prepare("
         SELECT
             a.id,
             a.username,
@@ -68,7 +70,7 @@ function currentAccount(): ?array
             a.role,
             a.status
         FROM account_tokens t
-        JOIN accounts a
+        INNER JOIN accounts a
             ON a.id = t.account_id
         WHERE t.token = :token
           AND t.expires_at > NOW()
@@ -81,7 +83,11 @@ function currentAccount(): ?array
 
     $account = $stmt->fetch();
 
-    if (!$account || $account['status'] !== 'active') {
+    if (!$account) {
+        return null;
+    }
+
+    if ($account['status'] !== 'active') {
         return null;
     }
 
