@@ -17,7 +17,6 @@ if ($login === '' || $password === '') {
 }
 
 try {
-
     $pdo = db();
 
     $stmt = $pdo->prepare("
@@ -66,16 +65,16 @@ try {
         ], 401);
     }
 
-    // Tạo token đăng nhập
+    // Tạo token
     $token = bin2hex(random_bytes(32));
 
     $expiresAt = date(
         'Y-m-d H:i:s',
-        time() + (7 * 24 * 60 * 60)
+        time() + 7 * 24 * 60 * 60
     );
 
-    // Database dùng cột "token"
-    $tokenStmt = $pdo->prepare("
+    // Lưu token vào đúng cột token của database
+    $stmt = $pdo->prepare("
         INSERT INTO account_tokens
         (
             account_id,
@@ -90,7 +89,7 @@ try {
         )
     ");
 
-    $tokenStmt->execute([
+    $stmt->execute([
         ':account_id' => $account['id'],
         ':token' => $token,
         ':expires_at' => $expiresAt
@@ -107,7 +106,10 @@ try {
 
 } catch (Throwable $e) {
 
-    error_log('LOGIN ERROR: ' . $e->getMessage());
+    error_log(
+        'LOGIN ERROR: ' .
+        $e->getMessage()
+    );
 
     jsonResponse([
         'success' => false,
