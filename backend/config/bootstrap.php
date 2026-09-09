@@ -95,7 +95,7 @@ function currentAccount(): ?array
         FROM account_tokens t
         INNER JOIN accounts a
             ON a.id = t.account_id
-        WHERE t.token_hash = ?
+        WHERE t.token = ?
           AND t.expires_at > NOW()
         LIMIT 1
     ");
